@@ -66,6 +66,10 @@ def __main__():
     # Only supported by Elastic and Splunk
     translate_parser.add_argument('-m', '--data-mapper',
                                   help='optional module to use for Splunk or Elastic STIX-to-query mapping')
+    # Only supported by aws_uds
+    translate_parser.add_argument('-l', '--logs',
+                                  help='optional module to use for aws_uds module to specify logs'
+                                       '')
 
     # transmit parser
     transmit_parser = parent_subparsers.add_parser(
@@ -250,6 +254,8 @@ def __main__():
             options['stix_validator'] = args.stix_validator
         if args.data_mapper:
             options['data_mapper'] = args.data_mapper
+        if args.logs:
+            options['log_type'] = args.logs
         recursion_limit = args.recursion_limit if args.recursion_limit else 1000
         translation = stix_translation.StixTranslation()
         result = translation.translate(

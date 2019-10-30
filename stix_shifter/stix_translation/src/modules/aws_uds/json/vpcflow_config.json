@@ -1,0 +1,12 @@
+{
+    "master_query_reference": "fields @timestamp, @message| filter ({filter_query})",
+    "filter_mapping":
+    {
+          "publicIp-stix_ipv4": "srcAddr",
+          "publicIp-stix_src_ref": "srcAddr",
+          "ipAddressV4": "dstAddr",
+          "remotePortDetails": "dstPort",
+          "localPortDetails": "srcPort",
+          "protocol": "protocol"
+    }
+}

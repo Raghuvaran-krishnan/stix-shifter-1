@@ -1,0 +1,22 @@
+{
+    "master_query_reference": "fields @timestamp, @message| {parse_query}| filter ({filter_query})",
+    "field_mapping": {
+      "publicIp-stix_ipv4": "parse @message /(?:\"publicIp\"\\:\")(?<srcAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\"\\}\\])/",
+      "ipAddressV4": "parse @message /(?:\"ipAddressV4\"\\:\")(?<dstAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\"\\,)/",
+      "publicIp-stix_src_ref": "parse @message /(?:\"publicIp\"\\:\")(?<srcAddr>(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))))(?:\"\\}\\])/",
+      "remotePortDetails": "parse @message /(?:\"remotePortDetails\"\\:\\{)(?:[\"A-Za-z\\:]+)(?<dstPort>\\d+)/",
+      "localPortDetails": "parse @message /(?:\"localPortDetails\"\\:\\{)(?:[\"A-Za-z\\:]+)(?<localport>\\d+)/",
+      "protocol": "parse @message /(:?\"protocol\"\\:\")(?<protocol>[a-zA-Z]+)(:?\")/",
+      "publicDnsName": "parse @message /(?:\"publicDnsName\"\\:\")(?<domain>([a-z0-9]+(-[a-z0-9]+)*)*[\\.\\-a-z0-9]*)(?:\"\\,)/"
+  },
+  "filter_mapping":
+  {
+        "publicIp-stix_ipv4": "srcAddr",
+        "publicIp-stix_src_ref": "srcAddr",
+        "ipAddressV4": "dstAddr",
+        "remotePortDetails": "dstPort",
+        "localPortDetails": "srcPort",
+        "protocol": "protocol",
+        "publicDnsName": "domain"
+  }
+}
