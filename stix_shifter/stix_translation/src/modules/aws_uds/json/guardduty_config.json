@@ -1,5 +1,5 @@
 {
-    "master_query_reference": "fields @timestamp, @message| {parse_query}| filter ({filter_query})",
+    "master_query_reference": "fields @timestamp, @message| {parse_query}| filter ({filter_query})| filter ({exclude_non_match})",
     "field_mapping": {
       "publicIp-stix_ipv4": "parse @message /(?:\"publicIp\"\\:\")(?<srcAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\"\\}\\])/",
       "ipAddressV4": "parse @message /(?:\"ipAddressV4\"\\:\")(?<dstAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\"\\,)/",
