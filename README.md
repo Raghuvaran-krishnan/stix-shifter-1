@@ -9,8 +9,6 @@
 
 STIX-shifter is an open source python library allowing software to connect to products that house data repositories by using STIX Patterning, and return results as STIX Observations.
 
-STIX-Shifter is the heart of the Universal Data Service (UDS) that is provided as part of [IBM Security Connect](https://www.ibm.com/security/connect/).
-
 For more information about this project, see the [STIX-shifter Overview](https://github.com/opencybersecurityalliance/stix-shifter/blob/master/OVERVIEW.md)
 
 ### Dependencies
@@ -47,9 +45,6 @@ Please read our [guidelines for contributing](https://github.com/opencybersecuri
 If you want to create a new adapter for STIX-shifter, see the [developer guide](https://github.com/opencybersecurityalliance/stix-shifter/blob/master/adapter-guide/develop-stix-adapter.md)
 
 ## Licensing
-
-
-Copyright 2019 IBM
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
