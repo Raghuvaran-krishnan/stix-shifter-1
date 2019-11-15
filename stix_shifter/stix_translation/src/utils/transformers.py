@@ -119,7 +119,11 @@ class TimestampToMilliseconds(ValueTransformer):
     def transform(timestamp):
         time_pattern = '%Y-%m-%dT%H:%M:%S.%fZ'
         epoch = datetime(1970, 1, 1)
-        converted_time = int(((datetime.strptime(timestamp, time_pattern) - epoch).total_seconds()) * 1000)
+        try:
+            converted_time = int(((datetime.strptime(timestamp, time_pattern) - epoch).total_seconds()) * 1000)
+        except ValueError:
+            time_pattern = '%Y-%m-%dT%H:%M:%SZ'
+            converted_time = int(((datetime.strptime(timestamp, time_pattern) - epoch).total_seconds()) * 1000)
         return converted_time
 
 

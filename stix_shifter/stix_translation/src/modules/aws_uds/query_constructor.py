@@ -42,13 +42,15 @@ class QueryStringPatternTranslator:
         ObservationOperators.And: 'OR'
     }
 
-    def __init__(self, pattern: Pattern, data_model_mapper, log_type, time_range):
+    def __init__(self, pattern: Pattern, data_model_mapper, time_range, from_stix_json_filename):
         self.dmm = data_model_mapper
         self.pattern = pattern
         self._time_range = time_range
-        self._log_config_master_file = self._master_log_file(log_type)
+        self.json_file = from_stix_json_filename
+        self.log_type = self.log_name_extract_from_json(from_stix_json_filename)
+        self._log_config_master_file = self._master_log_file(self.log_type)
         self._log_config_data = self.load_json(self._log_config_master_file)
-        self._protocol_lookup_needed = True if log_type == 'vpcflow' else False
+        self._protocol_lookup_needed = True if self.log_type in ['vpcflow', 'vpcflow1'] else False
         self._parse_list = []
         self.qualified_queries = []
         self.time_range_lst = []
@@ -57,6 +59,17 @@ class QueryStringPatternTranslator:
         self._filter_string_exclude = ''
         self._master_query_reference = self._log_config_data.get('master_query_reference')
         self.translated = self.parse_expression(pattern)
+
+    @staticmethod
+    def log_name_extract_from_json(json_filename):
+        """
+
+        :return:
+        """
+        compiled_regex_json = re.compile('^from_stix_(?P<log_type>.*)_map.json$')
+        json_filename_search = compiled_regex_json.search(path.basename(json_filename))
+        if json_filename_search:
+            return json_filename_search.group('log_type')
 
     @staticmethod
     def _master_log_file(log_type):
@@ -70,6 +83,8 @@ class QueryStringPatternTranslator:
         if log_type.lower() == 'guardduty':
             master_log_file = path.join('json', 'guardduty_config.json')
         elif log_type.lower() == 'vpcflow':
+            master_log_file = path.join('json', 'vpcflow_config.json')
+        elif log_type.lower() == 'vpcflow1':
             master_log_file = path.join('json', 'vpcflow_config.json')
         else:
             raise NotImplementedError("Unknown log type for AWS:{}".format(log_type))
@@ -194,22 +209,19 @@ class QueryStringPatternTranslator:
     # @staticmethod
     def _parse_mapped_fields(self, expression, value, comparator, stix_field, mapped_fields_array):
         # comparison_string, _exclude_non_match_qry = "", ""
-        comparison_string =  ""
+        comparison_string = ""
         mapped_fields_count = len(mapped_fields_array)
         for mapped_field in mapped_fields_array:
-            if mapped_field in self._log_config_data.get('filter_mapping'):
-                if expression.comparator == ComparisonComparators.In or isinstance(value, list):
-                    comparison_string += '({})'.format(' OR '.join(map(lambda x: "{mapped_field} {comparator} "
-                                                                                 "{value}".
-                                                                       format(mapped_field=self._log_config_data.
-                                                                              get('filter_mapping').get(mapped_field),
-                                                                              comparator=comparator,
-                                                                              value=x), value)))
-                elif expression.comparator == ComparisonComparators.IsSubSet:
-                    comparison_string += 'isIpv4InSubnet({mapped_field},{value})'.format(mapped_field=
-                                                                                         self._log_config_data.
-                                                                                         get('filter_mapping').
-                                                                                         get(mapped_field), value=value)
+            # if mapped_field in self._log_config_data.get('filter_mapping'):
+            if expression.comparator == ComparisonComparators.In or isinstance(value, list):
+                comparison_string += '({})'.format(' OR '.join(map(lambda x: "{mapped_field} {comparator} "
+                                                                             "{value}".
+                                                                   format(mapped_field=mapped_field,
+                                                                          comparator=comparator,
+                                                                          value=x), value)))
+            elif expression.comparator == ComparisonComparators.IsSubSet:
+                comparison_string += 'isIpv4InSubnet({mapped_field},{value})'.format(mapped_field=mapped_field,
+                                                                                     value=value)
 
                 # if expression.comparator == ComparisonComparators.NotEqual or \
                 #         expression.comparator == ComparisonComparators.IsSuperSet:
@@ -237,26 +249,28 @@ class QueryStringPatternTranslator:
                 # elif expression.comparator == ComparisonComparators.IsSubSet:
                 #     comparison_string += "({mapped_field} {comparator} {value} AND {mapped_field}:*)".format(
                 #         mapped_field=mapped_field, comparator=comparator, value=value)
-                else:
-                    comparison_string += "{mapped_field} {comparator} {value}".format(mapped_field=
-                                                                                      self._log_config_data.get(
-                                                                                          'filter_mapping').
-                                                                                      get(mapped_field),
-                                                                                      comparator=comparator,
-                                                                                      value=value)
-                if 'field_mapping' in self._log_config_data:
-                    self._parse_list.append(self._log_config_data.get('field_mapping').get(mapped_field))
-
-                self._exclude_non_match_lst.append('strlen({}) > 0'.format(self._log_config_data.get(
-                    'filter_mapping').get(mapped_field)))
-                if mapped_fields_count > 1:
-                    comparison_string += " OR "
-                    # _exclude_non_match_qry += " OR "
-                    mapped_fields_count -= 1
             else:
-                raise NotImplementedError(
-                    "{} unsupported for AWS log {}".format(stix_field, path.basename(
-                        self._log_config_master_file).split('_')[0]))
+                comparison_string += "{mapped_field} {comparator} {value}".format(mapped_field=
+                                                                                  mapped_field,
+                                                                                  comparator=comparator,
+                                                                                  value=value)
+            # The below code is for old gaurdduty code
+
+            # if 'field_mapping' in self._log_config_data:
+            #     self._parse_list.append(self._log_config_data.get('field_mapping').get(mapped_field))
+            #
+            # self._exclude_non_match_lst.append('strlen({}) > 0'.format(self._log_config_data.get(
+            #     'filter_mapping').get(mapped_field)))
+
+            # The above code is for old guardduty code
+            if mapped_fields_count > 1:
+                comparison_string += " OR "
+                # _exclude_non_match_qry += " OR "
+                mapped_fields_count -= 1
+            # else:
+            #     raise NotImplementedError(
+            #         "{} unsupported for AWS log {}".format(stix_field, path.basename(
+            #             self._log_config_master_file).split('_')[0]))
             # self._exclude_non_match_lst.append('strlen({}) > 0'.format(self._log_config_data.get(
             #     'filter_mapping').get(mapped_field)))
         # return comparison_string, _exclude_non_match_qry
@@ -313,6 +327,7 @@ class QueryStringPatternTranslator:
             stix_object, stix_field = expression.object_path.split(':')
             # Custom condition for protocol lookup if log type == 'vpcflow'
             if stix_field.lower() == 'protocols[*]':
+                existing_protocol_value = expression.value
                 value = self.protocol_lookup(expression.value)
                 if (not value) or (isinstance(value, list) and None in value):
                     raise NotImplementedError("Un-supported protocol '{}' for operation '{}' for aws '{}' logs".format(
@@ -324,7 +339,7 @@ class QueryStringPatternTranslator:
                     else value
                 # expression.value = value
             # Multiple data source fields may map to the same STIX Object
-            mapped_fields_array = self.dmm.map_field(stix_object, stix_field)
+            mapped_fields_array = self.dmm.map_field_json(stix_object, stix_field, path.basename(self.json_file))
             # Resolve the comparison symbol to use in the query string (usually just ':')
             comparator = self._lookup_comparison_operator(self, expression.comparator)
 
@@ -353,6 +368,9 @@ class QueryStringPatternTranslator:
             #                                                                       stix_field, mapped_fields_array)
             comparison_string = self._parse_mapped_fields(expression, value, comparator, stix_field,
                                                           mapped_fields_array)
+            # Reverting back the protocol value in expression to existing
+            if stix_field.lower() == 'protocols[*]':
+                expression.value = existing_protocol_value
             if len(mapped_fields_array) > 1:
                 # More than one data source field maps to the STIX attribute, so group comparisons together.
                 grouped_comparison_string = "(" + comparison_string + ")"
@@ -411,12 +429,13 @@ class QueryStringPatternTranslator:
             # self._exclude_non_match_lst = []
             self._filter_string_exclude = ''
             self._parse_list = []
-            self._parse_list = []
             filter_query = self._parse_expression(expression.comparison_expression, qualifier)
             parse_query = '| '.join(self._parse_list) if self._parse_list else ''
             self._parse_time_range(qualifier, self._time_range)
             self._filter_string_exclude = ' OR '.join(self._exclude_non_match_lst)
             self.qualified_queries.append(self._master_query_reference.format(parse_query=parse_query,
+                                                                              fields=', '.join(self._log_config_data
+                                                                                               .get('field_display')),
                                                                               filter_query=filter_query,
                                                                               exclude_non_match=
                                                                               self._filter_string_exclude))
@@ -460,17 +479,64 @@ class QueryStringPatternTranslator:
                 expression, type(expression)))
 
     def parse_expression(self, pattern: Pattern):
+        # for each_json_file in self.dmm.from_stix_files_cnt:
+        #     compiled_regex_json = re.compile('^from_stix_(?P<log_type>.*)_map.json$')
+        #     json_filename_search = compiled_regex_json.search(path.basename(each_json_file))
+        #     if json_filename_search:
+        #         self.log_type = json_filename_search.group('log_type')
+        #     self._parse_expression(pattern)
+        # return None
+
         return self._parse_expression(pattern)
 
 
 def translate_pattern(pattern: Pattern, data_model_mapping, options):
-    # Query result limit and time range can be passed into the QueryStringPatternTranslator if supported by the data source.
+    # Query result limit and time range can be passed into the QueryStringPatternTranslator
+    # if supported by the data source.
     # result_limit = options['result_limit']
+    # Sample output
+    # {
+    #     "vpc": {
+    #         "limit": 0,
+    #         "logGroupName": "",
+    #         "queryString": "fields @timestamp, @srcAddr, @dstAddr, @srcPort,
+    #         @dstPort, @protocol| filter (srcPort = "60" AND (srcAddr = "198.51.100.0" OR dstAddr = "198.51.100.0"))",
+    #         "startTime": 1571224113,
+    #         "endTime": 1671224169
+    #     },
+    #     "guardduty": {
+    #         "limit": 0,
+    #         "logGroupName": "",
+    #         "queryString": "fields @timestamp, @message| parse
+    #         @message /(?:\"publicIp\"\\:\")(?<srcAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.)
+    #         {3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))(?:\"\\}\\])/| parse @message /(?:\"ipAddressV4\"\\:\")
+    #         (?<dstAddr>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))
+    #         (?:\"\\,)/| parse @message /(:?\"protocol\"\\:\")(?<protocol>[a-zA-Z]+)(:?\")/| filter
+    #         ((srcAddr = \"12.34.12.1\" OR dstAddr = \"12.34.12.1\") AND (protocol = \"TCP\" OR
+    #         protocol = \"tcp\" OR protocol = \"UDP\" OR protocol = \"udp\"))|
+    #         filter ((strlen(srcAddr) > 0 OR strlen(dstAddr) > 0) AND strlen(protocol) > 0)",
+    #         "startTime": 1571224113,
+    #         "endTime": 1671224169
+    #     }
+    # }
+
     timerange = options['timerange']
-    log_type = options['log_type']
-    final_queries_obj = QueryStringPatternTranslator(pattern, data_model_mapping, log_type, timerange)
-    final_queries = final_queries_obj.qualified_queries
-    qualifier = final_queries_obj.time_range_lst
+    final_queries = []
+    for each_json_file in data_model_mapping.from_stix_files_cnt:
+        translate_query_dict = {}
+        queries_obj = QueryStringPatternTranslator(pattern, data_model_mapping, timerange, each_json_file)
+        qualifier_list = list(zip(*queries_obj.time_range_lst))
+        queries_string = queries_obj.qualified_queries
+
+        translate_query_dict[queries_obj.log_type] = {}
+        translate_query_dict[queries_obj.log_type]['limit'] = 0
+        translate_query_dict[queries_obj.log_type]['logGroupName'] = ""
+        translate_query_dict[queries_obj.log_type]['queryString'] = queries_string
+        translate_query_dict[queries_obj.log_type]['startTime'] = qualifier_list[0]
+        translate_query_dict[queries_obj.log_type]['endTime'] = qualifier_list[1]
+        final_queries.append(translate_query_dict)
+
+
     # Add space around START STOP qualifiers
     # query = re.sub("START", "START ", query)
     # query = re.sub("STOP", " STOP ", query)
@@ -478,4 +544,5 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options):
     # Change return statement as required to fit with data source query language.
     # If supported by the language, a limit on the number of results may be desired.
     # A single query string, or an array of query strings may be returned
-    return final_queries, qualifier
+    # return final_queries, qualifier
+    return final_queries
