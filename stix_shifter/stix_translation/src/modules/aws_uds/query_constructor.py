@@ -19,6 +19,7 @@ import re
 # logger = logging.getLogger(__name__)
 
 PROTOCOL_LOOKUP_JSON_FILE = 'json/network_protocol_map.json'
+MASTER_CONFIG_FILE = 'json/master_config.json'
 START_STOP_PATTERN = r"\d{4}(-\d{2}){2}T\d{2}(:\d{2}){2}(\.\d+)?Z"
 
 class QueryStringPatternTranslator:
@@ -48,8 +49,8 @@ class QueryStringPatternTranslator:
         self._time_range = time_range
         self.json_file = from_stix_json_filename
         self.log_type = self.log_name_extract_from_json(from_stix_json_filename)
-        self._log_config_master_file = self._master_log_file(self.log_type)
-        self._log_config_data = self.load_json(self._log_config_master_file)
+        # self._log_config_master_file = self._master_log_file(self.log_type)
+        self._log_config_data = self.load_json(MASTER_CONFIG_FILE)
         self._protocol_lookup_needed = True if self.log_type in ['vpcflow', 'vpcflow1'] else False
         self._parse_list = []
         self.qualified_queries = []
@@ -57,7 +58,7 @@ class QueryStringPatternTranslator:
         self._exclude_non_match_lst = []
         # self._is_single_comp_exp = True
         self._filter_string_exclude = ''
-        self._master_query_reference = self._log_config_data.get('master_query_reference')
+        self._master_query_reference = self._log_config_data.get(self.log_type).get('master_query_reference')
         self.translated = self.parse_expression(pattern)
 
     @staticmethod
@@ -207,7 +208,7 @@ class QueryStringPatternTranslator:
     #             mapped_field=mapped_field, comparator=comparator, value=value)
 
     # @staticmethod
-    def _parse_mapped_fields(self, expression, value, comparator, stix_field, mapped_fields_array):
+    def _parse_mapped_fields(self, expression, value, comparator, mapped_fields_array):
         # comparison_string, _exclude_non_match_qry = "", ""
         comparison_string = ""
         mapped_fields_count = len(mapped_fields_array)
@@ -254,15 +255,21 @@ class QueryStringPatternTranslator:
                                                                                   mapped_field,
                                                                                   comparator=comparator,
                                                                                   value=value)
-            # The below code is for old gaurdduty code
+            # The below code is for gaurdduty can wait
 
-            # if 'field_mapping' in self._log_config_data:
-            #     self._parse_list.append(self._log_config_data.get('field_mapping').get(mapped_field))
-            #
-            # self._exclude_non_match_lst.append('strlen({}) > 0'.format(self._log_config_data.get(
-            #     'filter_mapping').get(mapped_field)))
+            if 'field_mapping' in self._log_config_data.get(self.log_type):
+                import pdb;pdb.set_trace()
+                field_mapping_from_config = self._log_config_data.get(self.log_type).get('field_mapping').get(
+                    mapped_field)
+                if isinstance(field_mapping_from_config, dict):
+                    parse_value = field_mapping_from_config.get(expression.object_path)
+                else:
+                    parse_value = field_mapping_from_config
+                self._parse_list.append(parse_value)
 
-            # The above code is for old guardduty code
+            self._exclude_non_match_lst.append('strlen({}) > 0'.format(mapped_field))
+
+            # The above code is for guardduty can wait
             if mapped_fields_count > 1:
                 comparison_string += " OR "
                 # _exclude_non_match_qry += " OR "
@@ -366,8 +373,7 @@ class QueryStringPatternTranslator:
 
             # comparison_string, _exclude_non_match_qry = self._parse_mapped_fields(expression, value, comparator,
             #                                                                       stix_field, mapped_fields_array)
-            comparison_string = self._parse_mapped_fields(expression, value, comparator, stix_field,
-                                                          mapped_fields_array)
+            comparison_string = self._parse_mapped_fields(expression, value, comparator, mapped_fields_array)
             # Reverting back the protocol value in expression to existing
             if stix_field.lower() == 'protocols[*]':
                 expression.value = existing_protocol_value
@@ -435,6 +441,7 @@ class QueryStringPatternTranslator:
             self._filter_string_exclude = ' OR '.join(self._exclude_non_match_lst)
             self.qualified_queries.append(self._master_query_reference.format(parse_query=parse_query,
                                                                               fields=', '.join(self._log_config_data
+                                                                                               .get(self.log_type)
                                                                                                .get('field_display')),
                                                                               filter_query=filter_query,
                                                                               exclude_non_match=
@@ -523,19 +530,28 @@ def translate_pattern(pattern: Pattern, data_model_mapping, options):
     timerange = options['timerange']
     final_queries = []
     for each_json_file in data_model_mapping.from_stix_files_cnt:
-        translate_query_dict = {}
+        # translate_query_dict = {}
         queries_obj = QueryStringPatternTranslator(pattern, data_model_mapping, timerange, each_json_file)
         qualifier_list = list(zip(*queries_obj.time_range_lst))
         queries_string = queries_obj.qualified_queries
 
-        translate_query_dict[queries_obj.log_type] = {}
-        translate_query_dict[queries_obj.log_type]['limit'] = 0
-        translate_query_dict[queries_obj.log_type]['logGroupName'] = ""
-        translate_query_dict[queries_obj.log_type]['queryString'] = queries_string
-        translate_query_dict[queries_obj.log_type]['startTime'] = qualifier_list[0]
-        translate_query_dict[queries_obj.log_type]['endTime'] = qualifier_list[1]
-        final_queries.append(translate_query_dict)
+        # Old code starts here
+        # translate_query_dict[queries_obj.log_type] = {}
+        # translate_query_dict[queries_obj.log_type]['limit'] = 0
+        # translate_query_dict[queries_obj.log_type]['logGroupName'] = ""
+        # translate_query_dict[queries_obj.log_type]['queryString'] = queries_string
+        # translate_query_dict[queries_obj.log_type]['startTime'] = qualifier_list[0]
+        # translate_query_dict[queries_obj.log_type]['endTime'] = qualifier_list[1]
+        # Old code ends here
 
+        for index, each_query in enumerate(queries_string, start=0):
+            translate_query_dict = dict()
+            translate_query_dict['limit'] = 0
+            translate_query_dict['logGroupName'] = ""
+            translate_query_dict['queryString'] = each_query
+            translate_query_dict['startTime'] = qualifier_list[0][index]
+            translate_query_dict['endTime'] = qualifier_list[1][index]
+            final_queries.append(translate_query_dict)
 
     # Add space around START STOP qualifiers
     # query = re.sub("START", "START ", query)

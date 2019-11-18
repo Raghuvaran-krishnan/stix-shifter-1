@@ -1,0 +1,10 @@
+{
+    "vpcflow":{
+        "master_query_reference": "fields @timestamp, {fields}| filter ({filter_query})",
+        "field_display": ["srcAddr", "dstAddr", "srcPort", "dstPort", "protocol"]
+},
+    "vpcflow1":{
+        "master_query_reference": "fields @timestamp, {fields}| filter ({filter_query})",
+        "field_display": ["srcAddr1", "dstAddr1", "srcPort1", "dstPort1", "protocol1"]
+}
+}
