@@ -51,7 +51,8 @@ class QueryStringPatternTranslator:
         self.log_type = self.log_name_extract_from_json(from_stix_json_filename)
         # self._log_config_master_file = self._master_log_file(self.log_type)
         self._log_config_data = self.load_json(MASTER_CONFIG_FILE)
-        self._protocol_lookup_needed = True if self.log_type in ['vpcflow', 'vpcflow1'] else False
+        # self._protocol_lookup_needed = True if self.log_type in ['vpcflow', 'vpcflow1'] else False
+        self._protocol_lookup_needed = True if self.log_type in ['vpcflow'] else False
         self._parse_list = []
         self.qualified_queries = []
         self.time_range_lst = []
@@ -85,8 +86,8 @@ class QueryStringPatternTranslator:
             master_log_file = path.join('json', 'guardduty_config.json')
         elif log_type.lower() == 'vpcflow':
             master_log_file = path.join('json', 'vpcflow_config.json')
-        elif log_type.lower() == 'vpcflow1':
-            master_log_file = path.join('json', 'vpcflow_config.json')
+        # elif log_type.lower() == 'vpcflow1':
+        #     master_log_file = path.join('json', 'vpcflow_config.json')
         else:
             raise NotImplementedError("Unknown log type for AWS:{}".format(log_type))
         return master_log_file
@@ -255,10 +256,8 @@ class QueryStringPatternTranslator:
                                                                                   mapped_field,
                                                                                   comparator=comparator,
                                                                                   value=value)
-            # The below code is for gaurdduty can wait
-
+            # Guardduty parsing code starts here
             if 'field_mapping' in self._log_config_data.get(self.log_type):
-                import pdb;pdb.set_trace()
                 field_mapping_from_config = self._log_config_data.get(self.log_type).get('field_mapping').get(
                     mapped_field)
                 if isinstance(field_mapping_from_config, dict):
@@ -268,8 +267,16 @@ class QueryStringPatternTranslator:
                 self._parse_list.append(parse_value)
 
             self._exclude_non_match_lst.append('strlen({}) > 0'.format(mapped_field))
+            # Guardduty parsing code ends here
+            # if 'field_mapping' in self._log_config_data.get(self.log_type):
+            #     field_mapping_from_config = self._log_config_data.get(self.log_type).get(
+            #         mapped_field)
+            #     if isinstance(field_mapping_from_config, dict):
+            #         parse_value = field_mapping_from_config.get(expression.object_path)
+            #     else:
+            #         parse_value = field_mapping_from_config
+            #     self._parse_list.append(parse_value)
 
-            # The above code is for guardduty can wait
             if mapped_fields_count > 1:
                 comparison_string += " OR "
                 # _exclude_non_match_qry += " OR "
